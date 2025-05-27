@@ -1,36 +1,43 @@
-import whisper
 from difflib import SequenceMatcher
 import argparse
 import os
+import threading
+import tempfile
+import dotenv
+import os
+import requests
+from gradio_client import Client, handle_file
 
 
-def transcribe_audio(path: str, model_size: str = "base") -> str:
-    """
-    Transcribes an audio file using Whisper.
+BASE_URL    = "http://localhost:8000"  # faster-whisper-server base URL
+MODEL_NAME  = "Systran/faster-whisper-base"      # server model, e.g., 'small', 'base', etc.
 
-    Args:
-        path (str): Path to the audio file.
-        model_size (str): Size of the Whisper model to load (tiny, base, small, medium, large).
+client = Client(BASE_URL)
 
-    Returns:
-        str: The transcribed text.
-    """
-    model = whisper.load_model(model_size)
-    result = model.transcribe(path)
-    return result.get("text", "").strip()
+
+def transcribe_file(path):
+    """Send WAV file to faster-whisper-server API and print the result."""
+    print(f"Transcribing {path!r} via faster-whisper-server...")
+    try:
+        result = client.predict(
+            file_path=handle_file(path),
+            model=MODEL_NAME,
+            task='transcribe',
+            temperature=0,
+            stream=False,
+            api_name='/predict'
+        )
+
+        print("\n--- Transcript ---")
+        print(result)
+        print("------------------\n")
+
+        return result
+    except requests.RequestException as e:
+        print(f"Error during transcription: {e}")
 
 
 def compute_similarity(text1: str, text2: str) -> float:
-    """
-    Computes similarity percentage between two texts using SequenceMatcher.
-
-    Args:
-        text1 (str): First text string.
-        text2 (str): Second text string.
-
-    Returns:
-        float: Similarity ratio in percentage.
-    """
     matcher = SequenceMatcher(None, text1, text2)
     return matcher.ratio() * 100
 
@@ -56,11 +63,11 @@ def main():
         return
 
     print("Transcribing first audio...")
-    text1 = transcribe_audio(args.audio1, args.model)
+    text1 = transcribe_file(args.audio1)
     print(f"First transcription:\n{text1}\n")
 
     print("Transcribing second audio...")
-    text2 = transcribe_audio(args.audio2, args.model)
+    text2 = transcribe_file(args.audio2)
     print(f"Second transcription:\n{text2}\n")
 
     similarity = compute_similarity(text1, text2)

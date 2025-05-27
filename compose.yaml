@@ -1,0 +1,17 @@
+services:
+  faster-whisper:
+    image: lscr.io/linuxserver/faster-whisper:latest
+    container_name: faster-whisper
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - WHISPER_MODEL=${WHISPER_COMPOSE_MODEL}
+    volumes:
+      - whisper-volume:/config
+    ports:
+      - "10300:10300"
+    restart: unless-stopped
+
+volumes:
+  whisper-volume:
